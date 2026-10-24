@@ -7,6 +7,8 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-24
+
 ### Added
 
 - A permissions module (`use Sekisho`) and policies (`Sekisho.Policy`):
@@ -39,3 +41,6 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   others). A custom role's permissions are rows of
   `sekisho_role_permissions`. If you ran version 1 of the migrations from
   0.1.0-dev, roll it back and run it again: its tables changed.
+
+[Unreleased]: https://github.com/hattoriai/sekisho/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/hattoriai/sekisho/releases/tag/v0.1.0
