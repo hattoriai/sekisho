@@ -45,7 +45,12 @@ defmodule Sekisho.MixProject do
       {:postgrex, "~> 0.19", only: :test},
       # The tables' versions (Sekisho.Migrations), the installer, and the
       # optional screens.
-      {:phoenix_mountable, "~> 0.2.4"},
+      {:phoenix_mountable, path: "../phoenix_mountable", override: true},
+      # Sekisho.LiveView: events checked, and pages that lose their access.
+      {:phoenix_live_view, "~> 1.1", optional: true},
+      {:lazy_html, "~> 0.1", only: :test},
+      # mix sekisho.install. Without it, the task says what to do by hand.
+      {:igniter, "~> 0.6", optional: true},
       # Grants given and revoked, broadcast to the app's processes.
       {:phoenix_pubsub, "~> 2.1", optional: true},
       {:telemetry, "~> 1.0"}

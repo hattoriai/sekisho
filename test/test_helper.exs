@@ -14,6 +14,7 @@ _ = Ecto.Adapters.Postgres.storage_down(Ecto.Repo.Supervisor.parse_url(url))
 :ok = Ecto.Adapters.Postgres.storage_up(Ecto.Repo.Supervisor.parse_url(url))
 {:ok, _pid} = SekishoTest.Repo.start_link()
 {:ok, _pid} = Phoenix.PubSub.Supervisor.start_link(name: SekishoTest.PubSub)
+{:ok, _pid} = SekishoTest.Host.start()
 
 defmodule SekishoTest.Migration do
   use Ecto.Migration

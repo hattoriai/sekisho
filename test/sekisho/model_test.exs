@@ -147,8 +147,8 @@ defmodule Sekisho.ModelTest do
       Code.compile_string("defmodule SekishoTest.BadRoot do use Sekisho, repository: X end")
     end
 
-    assert_raise ArgumentError, ~r/needs policies:/, fn ->
-      Code.compile_string("defmodule SekishoTest.BadRoot2 do use Sekisho, repo: X end")
+    assert_raise ArgumentError, ~r/needs repo:/, fn ->
+      Code.compile_string("defmodule SekishoTest.BadRoot2 do use Sekisho, policies: [] end")
     end
   end
 end

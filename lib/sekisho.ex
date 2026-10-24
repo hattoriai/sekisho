@@ -144,6 +144,12 @@ defmodule Sekisho do
       @doc "The custom roles of a record."
       def roles(scope, record), do: Sekisho.Roles.list(__MODULE__, scope, record)
 
+      @doc """
+      Tells open pages (`Sekisho.LiveView`) that permissions changed in your
+      own tables (a membership): they check their access again.
+      """
+      def changed, do: Sekisho.changed(__MODULE__)
+
       @doc "Checks the policies together: their relations, and the roles they derive from."
       def validate!, do: Sekisho.validate!(__MODULE__)
     end
@@ -310,6 +316,15 @@ defmodule Sekisho do
     ctx.model.config.repo.exists?(
       from x in schema, where: field(x, ^key) == ^id, where: ^condition
     )
+  end
+
+  @doc false
+  def changed(root) do
+    if pubsub = root.__sekisho__(:config).pubsub do
+      Phoenix.PubSub.broadcast(pubsub, "sekisho", {:sekisho, :changed, %{}})
+    end
+
+    :ok
   end
 
   ## The whole

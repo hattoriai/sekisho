@@ -15,7 +15,6 @@ defmodule Sekisho.Config do
     config = struct!(__MODULE__, opts)
 
     if is_nil(config.repo), do: raise(ArgumentError, "use Sekisho needs repo:")
-    if config.policies == [], do: raise(ArgumentError, "use Sekisho needs policies:")
 
     if config.deny_as not in [:forbidden, :not_found],
       do: raise(ArgumentError, "deny_as: is :forbidden or :not_found")
