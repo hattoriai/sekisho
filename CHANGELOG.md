@@ -7,6 +7,8 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-24
+
 ### Fixed
 
 - A permission no role gives, asked without a record (`allowed?(scope,
@@ -49,5 +51,6 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `sekisho_role_permissions`. If you ran version 1 of the migrations from
   0.1.0-dev, roll it back and run it again: its tables changed.
 
-[Unreleased]: https://github.com/hattoriai/sekisho/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hattoriai/sekisho/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/hattoriai/sekisho/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hattoriai/sekisho/releases/tag/v0.1.0
