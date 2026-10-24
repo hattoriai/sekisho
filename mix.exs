@@ -66,7 +66,7 @@ defmodule Sekisho.MixProject do
       name: "sekisho",
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
-      files: ~w(lib mix.exs .formatter.exs README.md CHANGELOG.md LICENSE NOTICE)
+      files: ~w(lib guides mix.exs .formatter.exs README.md CHANGELOG.md LICENSE NOTICE)
     ]
   end
 
@@ -76,10 +76,28 @@ defmodule Sekisho.MixProject do
       source_ref: "v#{@version}",
       source_url: @source_url,
       assets: %{"media" => "media"},
-      extras: ["README.md", "CHANGELOG.md"],
+      extras: [
+        "README.md",
+        "guides/quickstart.md",
+        "guides/rules.md",
+        "guides/rbac.md",
+        "guides/rebac.md",
+        "guides/abac.md",
+        "guides/hybrid.md",
+        "guides/sources.md",
+        "guides/phoenix.md",
+        "guides/testing.md",
+        "guides/queries.md",
+        "CHANGELOG.md"
+      ],
+      groups_for_extras: [
+        Guides: ~r/guides\/(quickstart|rules|rbac|rebac|abac|hybrid)/,
+        "In your app": ~r/guides\/(sources|phoenix|testing|queries)/
+      ],
       groups_for_modules: [
         "Your modules": [Sekisho, Sekisho.Policy, Sekisho.Sources],
-        Results: [Sekisho.Denied, Sekisho.Explanation, Sekisho.Grant],
+        Phoenix: [Sekisho.LiveView],
+        Results: [Sekisho.Denied, Sekisho.Explanation, Sekisho.Grant, Sekisho.Role],
         Tables: [Sekisho.Migrations],
         Tests: [Sekisho.Test]
       ]
