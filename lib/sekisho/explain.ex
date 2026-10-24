@@ -128,7 +128,9 @@ defmodule Sekisho.Explain do
         on:
           r.resource_type == g.resource_type and r.resource_id == g.resource_id and
             r.name == g.role,
-        where: g.resource_type == ^type and g.resource_id == ^id and ^name in r.permissions,
+        join: p in Sekisho.RolePermission,
+        on: p.role_id == r.id and p.permission == ^name,
+        where: g.resource_type == ^type and g.resource_id == ^id,
         where: is_nil(g.expires_at) or g.expires_at > ^now
       )
       |> ctx.model.config.repo.all()

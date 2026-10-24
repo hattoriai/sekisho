@@ -63,9 +63,26 @@ by token. Yours need:
 Phoenix's generators index foreign keys; check the ones you added by
 hand.
 
+## Any SQL database
+
+The queries are plain Ecto, in SQL every database runs: joins, `UNION`,
+`EXISTS`, and a recursive `WITH` for records nested in records of their
+own kind. A custom role's permissions are rows of
+`sekisho_role_permissions`, not an array.
+
+What a database does its own way is in its dialect (`Sekisho.SQL.Dialect`),
+and only there: making a grant again in one statement where the database
+can (PostgreSQL, SQLite), and the type of a column where the standard one
+does not fit (MySQL indexes a `varbinary`, not a `blob`). Another database
+needs only a dialect, if anything, named for its adapter:
+
+```elixir
+config :sekisho, :dialects, %{Ecto.Adapters.Tds => MyApp.TdsDialect}
+```
+
 ## Statistics and JIT
 
-The plans rely on PostgreSQL's estimates. Keep autovacuum on, or
+On PostgreSQL, the plans rely on its estimates. Keep autovacuum on, or
 `ANALYZE` after a large import. PostgreSQL's JIT compiler starts above a
 cost it estimates; on a database whose statistics are missing (a test
 database, a fresh restore) a large estimate can make JIT cost more than
@@ -79,5 +96,3 @@ the query. `SET jit = off` for the role, as many apps do, if you see
   when grants change.
 * **No checks in memory.** A record is checked as it is in the database.
   A rule about the actor alone needs no database at all.
-* **PostgreSQL only**, for the recursive queries and the arrays of custom
-  roles.

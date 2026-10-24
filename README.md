@@ -17,8 +17,10 @@ database, next to your data, and needs no other service.
 
 ## Install
 
-You need Elixir 1.18+, Ecto 3.13 on PostgreSQL, and Phoenix 1.7.14 or
-1.8. LiveView is optional.
+You need Elixir 1.18+, Ecto 3.13 on a SQL database (PostgreSQL, MySQL
+or MariaDB, SQLite, or another through a
+[dialect](https://hexdocs.pm/sekisho/Sekisho.SQL.Dialect.html)), and Phoenix
+1.7.14 or 1.8. LiveView is optional.
 
 With [Igniter](https://hexdocs.pm/igniter), one command adds Sekisho and
 sets it up. It shows each change and asks before it writes:
@@ -163,7 +165,7 @@ LiveView.
 
 ## Development
 
-You need PostgreSQL. The tests make their own database:
+The tests run on PostgreSQL, and make their own database:
 
 ```sh
 mix deps.get
