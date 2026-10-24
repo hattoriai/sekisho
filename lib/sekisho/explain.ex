@@ -1,11 +1,41 @@
 defmodule Sekisho.Explain do
   @moduledoc false
-  # Why the actor holds one of the roles on a record: the same paths as
-  # Sekisho.Condition, followed record by record, with what was found on each.
+  # Why the actor has a permission on a record, or holds a role there: the
+  # same paths as Sekisho.Condition, followed record by record, with what was
+  # found on each.
 
   import Ecto.Query
 
   alias Sekisho.{Call, Grant, Model}
+
+  # {reasons, denied}: everything that allows it, and whether deny/2 refuses
+  # it all the same.
+  def why(ctx, %{__struct__: schema} = record, permission, visited) do
+    policy = Model.policy!(ctx.model, schema)
+
+    reasons =
+      List.wrap(if rule?(ctx, policy, :allow, record, permission), do: {:allow}) ++
+        holds(ctx, record, Model.roles_with(ctx.model, schema, permission), visited) ++
+        custom(ctx, record, permission) ++ permission_related(ctx, record, permission, visited)
+
+    {reasons, rule?(ctx, policy, :deny, record, permission)}
+  end
+
+  # The reasons, when they allow it.
+  defp allowed(ctx, record, permission, visited) do
+    case why(ctx, record, permission, visited) do
+      {reasons, false} -> reasons
+      {_reasons, true} -> []
+    end
+  end
+
+  defp rule?(ctx, policy, function, record, permission) do
+    case Call.optional(policy, function, [ctx.actor, permission]) do
+      nil -> false
+      result when is_boolean(result) -> result
+      condition -> Sekisho.matches?(ctx, record, condition)
+    end
+  end
 
   def holds(_ctx, _record, [], _visited), do: []
 
@@ -85,29 +115,75 @@ defmodule Sekisho.Explain do
     end
   end
 
-  # Each relation once: what is held on the related record, and the strongest
-  # role it gives here (the one that implies the most).
+  # A custom role granted on the record that gives the permission.
+  defp custom(ctx, %{__struct__: schema} = record, permission) do
+    if Model.custom_roles?(ctx.model, schema) do
+      type = Model.type(ctx.model, schema)
+      id = Map.fetch!(record, Model.primary_key(schema))
+      name = to_string(permission)
+      now = ctx.now
+
+      from(g in Grant,
+        join: r in Sekisho.Role,
+        on:
+          r.resource_type == g.resource_type and r.resource_id == g.resource_id and
+            r.name == g.role,
+        where: g.resource_type == ^type and g.resource_id == ^id and ^name in r.permissions,
+        where: is_nil(g.expires_at) or g.expires_at > ^now
+      )
+      |> ctx.model.config.repo.all()
+      |> Enum.filter(&mine?(ctx, &1))
+      |> Enum.map(&{:grant, &1.role, &1})
+    else
+      []
+    end
+  end
+
+  # The permission, from a role or a permission of a related record.
+  defp permission_related(ctx, %{__struct__: schema} = record, permission, visited) do
+    for {relation, other} <- Model.permission_derives(ctx.model, schema, permission),
+        related <- related_records(ctx, record, relation),
+        why = there(ctx, related, other, visited),
+        why != [],
+        do: {:derived, permission, relation, related, why}
+  end
+
+  # Each relation once: what is held there, and the strongest role it gives
+  # here (the one that implies the most).
   defp related(ctx, %{__struct__: schema} = record, roles, visited) do
     ctx.model
     |> Model.related_derives(schema, roles)
     |> Enum.group_by(fn {_role, relation, _other} -> relation end)
     |> Enum.flat_map(fn {relation, derives} ->
-      others = derives |> Enum.map(&elem(&1, 2)) |> Enum.uniq()
-
       for related <- related_records(ctx, record, relation),
-          why = holds(ctx, related, others, visited),
-          why != [],
-          do: {:related, strongest(ctx, schema, derives, related, why), relation, related, why}
+          given = given(ctx, related, derives, visited),
+          given != [] do
+        {role, why} = strongest(ctx, schema, given)
+        {:related, role, relation, related, why}
+      end
     end)
   end
 
-  defp strongest(ctx, schema, derives, related, why) do
-    held_there = Model.implied_all(ctx.model, related.__struct__, held(why))
-    given = for {role, _relation, other} <- derives, other in held_there, do: role
-    Enum.max_by(given, &MapSet.size(Model.implied(ctx.model, schema, &1)))
+  defp strongest(ctx, schema, given),
+    do:
+      Enum.max_by(given, fn {role, _why} ->
+        MapSet.size(Model.implied(ctx.model, schema, role))
+      end)
+
+  # The roles here that the related record gives, with why.
+  defp given(ctx, related, derives, visited) do
+    for {role, _relation, other} <- derives,
+        why = there(ctx, related, other, visited),
+        why != [],
+        do: {role, why}
   end
 
-  defp held(reasons), do: Enum.map(reasons, &elem(&1, 1))
+  # A role held on the related record, or a permission had there.
+  defp there(ctx, %{__struct__: schema} = related, other, visited) do
+    if Model.role?(ctx.model, schema, other),
+      do: holds(ctx, related, [other], visited),
+      else: allowed(ctx, related, other, visited)
+  end
 
   defp related_records(ctx, %{__struct__: schema} = record, relation) do
     repo = ctx.model.config.repo

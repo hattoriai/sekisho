@@ -22,7 +22,8 @@ defmodule Sekisho.Migrations do
   or `up(version: 1, primary_key: :binary_id)`. It is kept with the version,
   so later versions use it too.
 
-  Version 1 makes `sekisho_grants` (`Sekisho.Grant`).
+  Version 1 makes `sekisho_grants` (`Sekisho.Grant`) and `sekisho_roles`
+  (`Sekisho.Role`).
   """
 
   use PhoenixMountable.Migrations,

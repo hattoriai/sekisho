@@ -5,10 +5,13 @@ defmodule Sekisho.Explanation do
   `reasons` lists everything that allows it, each one of:
 
     * `{:allow}`: a rule of the policy (`allow/2`);
-    * `{:grant, role, grant}`: a role granted on the record (`Sekisho.Grant`);
+    * `{:grant, role, grant}`: a role granted on the record (`Sekisho.Grant`),
+      a role of the policy (an atom) or one the record defines (its name);
     * `{:source, role}`: a role from your sources;
     * `{:related, role, relation, record, reasons}`: a role derived from one
-      held on a related record, and why that one is held.
+      held on a related record, and why that one is held;
+    * `{:derived, permission, relation, record, reasons}`: the permission,
+      from a role or a permission on a related record, and why.
 
   `denied` is true when `deny/2` refuses it, whatever the reasons.
 
@@ -23,9 +26,10 @@ defmodule Sekisho.Explanation do
 
   @type reason ::
           {:allow}
-          | {:grant, atom(), Sekisho.Grant.t()}
+          | {:grant, atom() | String.t(), Sekisho.Grant.t()}
           | {:source, atom()}
           | {:related, atom(), atom(), struct(), [reason()]}
+          | {:derived, atom(), atom(), struct(), [reason()]}
 
   @type t :: %__MODULE__{
           permission: atom(),
@@ -74,6 +78,14 @@ defmodule Sekisho.Explanation do
 
   defp reason({:source, role}, depth),
     do: [indent(depth) <> "holds #{inspect(role)}: from your sources"]
+
+  defp reason({:derived, permission, relation, record, why}, depth) do
+    [
+      indent(depth) <>
+        "has #{inspect(permission)} through #{inspect(relation)}: #{describe(record)}"
+      | reasons(why, depth + 1)
+    ]
+  end
 
   defp reason({:related, role, relation, record, why}, depth) do
     [

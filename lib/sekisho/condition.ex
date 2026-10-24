@@ -32,29 +32,31 @@ defmodule Sekisho.Condition do
     allowed = rule(policy, :allow, ctx.actor, permission)
     denied = rule(policy, :deny, ctx.actor, permission)
 
-    held =
-      case Model.roles_with(ctx.model, schema, permission) do
-        [] -> false
-        roles -> holds(ctx, schema, roles)
-      end
+    # A role that gives it, a custom role that gives it, or what gives it on
+    # a related record.
+    paths =
+      paths(ctx, schema, Model.roles_with(ctx.model, schema, permission)) ++
+        custom(ctx, schema, permission) ++
+        Enum.flat_map(Model.permission_derives(ctx.model, schema, permission), fn {relation,
+                                                                                   other} ->
+          List.wrap(related(ctx, schema, relation, [other]))
+        end)
 
-    both(either(allowed, held), negate(denied))
+    both(either(allowed, within(schema, paths)), negate(denied))
   end
 
-  # The records of the schema on which the actor holds one of the roles.
-  @spec holds(Context.t(), module(), [atom()]) :: t()
-  def holds(ctx, schema, roles) do
-    case ids(ctx, schema, roles) do
-      nil ->
-        false
+  defp within(_schema, []), do: false
 
-      ids ->
-        key = Model.primary_key(schema)
-        dynamic([x], field(x, ^key) in subquery(ids))
-    end
+  defp within(schema, paths) do
+    key = Model.primary_key(schema)
+    ids = from(u in subquery(union_all(paths)), select: u.id)
+    dynamic([x], field(x, ^key) in subquery(ids))
   end
 
-  # Their ids, as a query of one column, or nil when no path can hold one.
+  # The ids of the records of the schema on which the actor holds one of the
+  # roles, as a query of one column, or nil when no path can hold one.
+  defp ids(_ctx, _schema, []), do: nil
+
   defp ids(ctx, schema, roles) do
     case paths(ctx, schema, roles) do
       [] -> nil
@@ -183,12 +185,39 @@ defmodule Sekisho.Condition do
     end
   end
 
+  ## Roles a record defines (custom_roles): granted by name, their
+  ## permissions in sekisho_roles
+
+  defp custom(ctx, schema, permission) do
+    with true <- Model.custom_roles?(ctx.model, schema),
+         who when who != false <- grantees(ctx) do
+      type = Model.type(ctx.model, schema)
+      name = to_string(permission)
+      now = ctx.now
+
+      [
+        from(g in Grant,
+          join: r in Sekisho.Role,
+          on:
+            r.resource_type == g.resource_type and r.resource_id == g.resource_id and
+              r.name == g.role,
+          where: g.resource_type == ^type and ^name in r.permissions,
+          where: is_nil(g.expires_at) or g.expires_at > ^now,
+          where: ^who,
+          select: %{id: g.resource_id}
+        )
+      ]
+    else
+      _none -> []
+    end
+  end
+
   ## Derived from a related record
 
   defp related(ctx, schema, relation, others) do
     case Model.relation!(ctx.model, schema, relation) do
       {:belongs_to, key, related} ->
-        with ids when not is_nil(ids) <- ids(ctx, related, others) do
+        with ids when not is_nil(ids) <- related_ids(ctx, related, others) do
           id = Model.primary_key(schema)
           from y in schema, where: field(y, ^key) in subquery(ids), select: %{id: field(y, ^id)}
         end
@@ -200,11 +229,32 @@ defmodule Sekisho.Condition do
                   "#{inspect(schema)}'s relation #{inspect(relation)} needs relation/2 in the " <>
                     "sources of #{inspect(ctx.root)}"
 
-        with ids when not is_nil(ids) <- ids(ctx, related, others) do
+        with ids when not is_nil(ids) <- related_ids(ctx, related, others) do
           from r in subquery(query),
             where: r.related_id in subquery(ids),
             select: %{id: r.resource_id}
         end
+    end
+  end
+
+  # The ids of the related records where one of these is held: a role (and
+  # what derives it), or a permission (its whole condition, rules included).
+  defp related_ids(ctx, related, others) do
+    {roles, permissions} = Enum.split_with(others, &Model.role?(ctx.model, related, &1))
+    key = Model.primary_key(related)
+
+    by_permission =
+      for permission <- permissions do
+        case build(ctx, related, permission) do
+          false -> nil
+          true -> from(y in related, select: field(y, ^key))
+          condition -> from(y in related, where: ^condition, select: field(y, ^key))
+        end
+      end
+
+    case Enum.reject([ids(ctx, related, roles) | by_permission], &is_nil/1) do
+      [] -> nil
+      queries -> union_all(queries)
     end
   end
 

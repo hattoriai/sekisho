@@ -7,21 +7,24 @@ defmodule Sekisho.Grants do
   # permission of the role, so no one gives or takes a role above their own.
   # `check: false` skips the check, for seeds and for the first owner of a
   # record just created.
+  #
+  # A role is a role of the policy (an atom), or one the record defines
+  # (custom_roles, by its name: a string).
 
   import Ecto.Query
 
-  alias Sekisho.{Context, Denied, Grant, Model}
+  alias Sekisho.{Context, Denied, Grant, Model, Role}
 
   def grant(root, scope, to, role, opts) do
     {resource, opts} = Keyword.pop!(opts, :on)
     ctx = Context.new(root, scope)
     {schema, id} = record!(resource)
     policy = Model.policy!(ctx.model, schema)
-    role!(policy, role)
+    permissions = role_permissions!(ctx, policy, resource, role)
     {kind, actor_type, actor_id} = grantee!(ctx, policy, to)
     link_role!(ctx, policy, kind, role)
 
-    with :ok <- check(ctx, opts, resource, role) do
+    with :ok <- check(ctx, opts, resource, permissions) do
       grant = %Grant{
         resource_type: Model.type(ctx.model, schema),
         resource_id: id,
@@ -43,10 +46,10 @@ defmodule Sekisho.Grants do
     ctx = Context.new(root, scope)
     {schema, id} = record!(resource)
     policy = Model.policy!(ctx.model, schema)
-    role!(policy, role)
+    permissions = role_permissions!(ctx, policy, resource, role)
     {_kind, actor_type, actor_id} = grantee!(ctx, policy, to)
 
-    with :ok <- check(ctx, opts, resource, role) do
+    with :ok <- check(ctx, opts, resource, permissions) do
       type = Model.type(ctx.model, schema)
       name = to_string(role)
 
@@ -97,25 +100,26 @@ defmodule Sekisho.Grants do
 
   ## Checks
 
-  defp check(ctx, opts, resource, role) do
+  # The permission that grants on the record, and every permission given:
+  # one query.
+  @doc false
+  def check(ctx, opts, resource, permissions) do
     if Keyword.get(opts, :check, true) do
       %{__struct__: schema} = resource
       policy = Model.policy!(ctx.model, schema)
+      needed = Enum.uniq([policy.__sekisho__(:grant_to).by | permissions])
 
-      needed = [
-        policy.__sekisho__(:grant_to).by | Model.role_permissions(ctx.model, schema, role)
-      ]
-
-      case Sekisho.with_permissions(ctx.root, [resource], ctx.scope, Enum.uniq(needed)) do
+      case Sekisho.with_permissions(ctx.root, [resource], ctx.scope, needed) do
         [{_record, held}] when length(held) == length(needed) -> :ok
-        [{_record, held}] -> denied(ctx, hd(Enum.uniq(needed) -- held), resource)
+        [{_record, held}] -> denied(ctx, hd(needed -- held), resource)
       end
     else
       :ok
     end
   end
 
-  defp authorize(ctx, permission, resource) do
+  @doc false
+  def authorize(ctx, permission, resource) do
     if Sekisho.decide(ctx, permission, resource), do: :ok, else: denied(ctx, permission, resource)
   end
 
@@ -124,7 +128,8 @@ defmodule Sekisho.Grants do
     {:error, %Denied{permission: permission, resource: resource, plug_status: status}}
   end
 
-  defp record!(%{__struct__: schema} = record) do
+  @doc false
+  def record!(%{__struct__: schema} = record) do
     case Map.fetch!(record, Model.primary_key(schema)) do
       nil ->
         raise ArgumentError, "a grant is on a record that is saved, not a new #{inspect(schema)}"
@@ -134,14 +139,29 @@ defmodule Sekisho.Grants do
     end
   end
 
-  defp record!(other),
+  def record!(other),
     do: raise(ArgumentError, "a grant is on a record (on:), not #{inspect(other)}")
 
-  defp role!(policy, role) do
+  # The permissions the role gives on the record: a role of the policy, with
+  # those it implies, or a role the record defines.
+  defp role_permissions!(ctx, policy, resource, role) when is_atom(role) do
     if not Map.has_key?(policy.__sekisho__(:roles), role) do
       raise ArgumentError,
             "#{inspect(role)} is not a role of #{inspect(policy)}: " <>
               inspect(Map.keys(policy.__sekisho__(:roles)))
+    end
+
+    Model.role_permissions(ctx.model, resource.__struct__, role)
+  end
+
+  defp role_permissions!(ctx, policy, resource, name) when is_binary(name) do
+    if not policy.__sekisho__(:custom_roles) do
+      raise ArgumentError, "#{inspect(policy)} has no custom_roles, so no role #{inspect(name)}"
+    end
+
+    case Sekisho.Roles.get(ctx, resource, name) do
+      %Role{} = role -> Enum.map(role.permissions, &String.to_existing_atom/1)
+      nil -> raise ArgumentError, "#{inspect(name)} is not a role of #{inspect(resource)}"
     end
   end
 
@@ -164,6 +184,13 @@ defmodule Sekisho.Grants do
 
     {kind, type, id}
   end
+
+  defp link_role!(_ctx, policy, :link, role) when is_binary(role),
+    do:
+      raise(
+        ArgumentError,
+        "#{inspect(policy)} grants a link a role of its own, not #{inspect(role)}"
+      )
 
   defp link_role!(ctx, policy, :link, role) do
     case policy.__sekisho__(:grant_to).link_up_to do
@@ -200,7 +227,8 @@ defmodule Sekisho.Grants do
     )
   end
 
-  defp broadcast(ctx, grant, event) do
+  @doc false
+  def broadcast(ctx, grant, event) do
     if pubsub = ctx.model.config.pubsub do
       message =
         {:sekisho, event,

@@ -100,7 +100,7 @@ defmodule Sekisho.Test do
 
     assert got == want,
            "where_allowed #{inspect(permission)}: " <>
-             "missing #{inspect(MapSet.to_list(MapSet.difference(want, got)))}, " <>
-             "unexpected #{inspect(MapSet.to_list(MapSet.difference(got, want)))}"
+             "missing #{inspect(MapSet.to_list(MapSet.difference(want, got)), charlists: :as_lists)}, " <>
+             "unexpected #{inspect(MapSet.to_list(MapSet.difference(got, want)), charlists: :as_lists)}"
   end
 end

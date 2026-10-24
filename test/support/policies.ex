@@ -22,10 +22,10 @@ defmodule SekishoTest.PostPolicy do
 end
 
 defmodule SekishoTest.OrgPolicy do
-  @moduledoc "Roles from the app's memberships (the sources)."
+  @moduledoc "Roles from the app's memberships (the sources), and roles each org defines."
   use Sekisho.Policy, for: SekishoTest.Org
 
-  permissions [:read, :invite, :manage]
+  permissions [:read, :invite, :manage, :audit]
 
   role :member, permissions: [:read]
   role :admin, permissions: [:invite]
@@ -35,6 +35,7 @@ defmodule SekishoTest.OrgPolicy do
   derive :admin, from: :owner
 
   grant_to [:user], by: :manage
+  custom_roles()
 end
 
 defmodule SekishoTest.FolderPolicy do
@@ -95,6 +96,11 @@ defmodule SekishoTest.DocumentPolicy do
   derive :owner, from: {:folder, :owner}
   derive :editor, from: {:org, :admin}
   derive :viewer, from: {:project, :member}
+
+  # Permissions from the org: an auditor (a custom role) reads every
+  # document; only the org's owners delete.
+  derive :read, from: {:org, :audit}
+  derive :delete, from: {:org, :owner}
 
   relation :project, SekishoTest.Project
 

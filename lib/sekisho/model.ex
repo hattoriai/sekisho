@@ -107,12 +107,24 @@ defmodule Sekisho.Model do
     |> Enum.uniq()
   end
 
-  # {role, relation, role on the related record}, for the roles given.
+  # {role, relation, role or permission on the related record}, for the
+  # roles given.
   def related_derives(model, schema, roles) do
     for {role, {relation, other}} <- policy!(model, schema).__sekisho__(:derives),
         role in roles,
         do: {role, relation, other}
   end
+
+  # {relation, role or permission on the related record}: what gives the
+  # permission across a relation.
+  def permission_derives(model, schema, permission) do
+    for {^permission, {relation, other}} <- policy!(model, schema).__sekisho__(:derives),
+        do: {relation, other}
+  end
+
+  def role?(model, schema, name), do: Map.has_key?(roles(model, schema), name)
+
+  def custom_roles?(model, schema), do: policy!(model, schema).__sekisho__(:custom_roles)
 
   defp same_derives(model, schema) do
     for {role, from} <- policy!(model, schema).__sekisho__(:derives),
@@ -157,31 +169,46 @@ defmodule Sekisho.Model do
       for {schema, policy} <- model.policies,
           {role, {relation, other}} <- policy.__sekisho__(:derives) do
         {kind, related} = follow!(model, schema, relation)
-        related_policy = policy!(model, related)
 
-        if not Map.has_key?(related_policy.__sekisho__(:roles), other) do
-          raise ArgumentError,
-                "#{inspect(policy)}: #{inspect(role)} derives from #{inspect(other)} on " <>
-                  "#{inspect(relation)}, which is not a role of #{inspect(related_policy)}"
+        case derive_error(model, policy, {role, relation, other}, {kind, schema, related}) do
+          nil -> {schema, related}
+          message -> raise ArgumentError, "#{inspect(policy)}: " <> message
         end
-
-        if related == schema and kind == :source do
-          raise ArgumentError,
-                "#{inspect(policy)}: #{inspect(relation)} relates #{inspect(schema)} to itself through " <>
-                  "your sources; a relation to the same schema is a belongs_to"
-        end
-
-        if related == schema and role != other do
-          raise ArgumentError,
-                "#{inspect(policy)}: on a relation to the same schema (#{inspect(relation)}), " <>
-                  "a role derives from itself (derive #{inspect(other)}, from: " <>
-                  "{#{inspect(relation)}, #{inspect(other)}})"
-        end
-
-        {schema, related}
       end
 
     acyclic!(Enum.reject(edges, fn {from, to} -> from == to end))
+  end
+
+  defp derive_error(model, policy, {role, relation, other}, {kind, schema, related}) do
+    related_policy = policy!(model, related)
+
+    if Map.has_key?(related_policy.__sekisho__(:roles), other) or
+         other in related_policy.__sekisho__(:permissions) do
+      if related == schema, do: itself_error(policy, kind, {role, relation, other})
+    else
+      "#{inspect(role)} derives from #{inspect(other)} on #{inspect(relation)}, which is not a " <>
+        "role or a permission of #{inspect(related_policy)}"
+    end
+  end
+
+  # Down a relation to the same schema: a belongs_to, and a role from itself.
+  defp itself_error(policy, kind, {role, relation, other}) do
+    cond do
+      kind == :source ->
+        "#{inspect(relation)} relates #{inspect(policy.__sekisho__(:schema))} to itself through " <>
+          "your sources; a relation to the same schema is a belongs_to"
+
+      not Map.has_key?(policy.__sekisho__(:roles), role) ->
+        "on a relation to the same schema (#{inspect(relation)}), roles derive, not " <>
+          "permissions (#{inspect(role)})"
+
+      role != other ->
+        "on a relation to the same schema (#{inspect(relation)}), a role derives from itself " <>
+          "(derive #{inspect(other)}, from: {#{inspect(relation)}, #{inspect(other)}})"
+
+      true ->
+        nil
+    end
   end
 
   defp follow!(model, schema, relation) do

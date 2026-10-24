@@ -35,6 +35,9 @@ defmodule Sekisho do
       MyApp.Permissions.revoke(scope, ana, :editor, on: document)
       MyApp.Permissions.grants(scope, document)
 
+      {:ok, support} = MyApp.Permissions.create_role(scope, org, "Support", [:"investigations.view"])
+      MyApp.Permissions.grant(scope, ana, "Support", on: org)
+
   The rules are in policies (`Sekisho.Policy`), and roles held in your own
   tables in sources (`Sekisho.Sources`).
 
@@ -125,6 +128,21 @@ defmodule Sekisho do
 
       @doc "The grants on a record."
       def grants(scope, record), do: Sekisho.Grants.list(__MODULE__, scope, record)
+
+      @doc "Makes a role the record defines for itself (`custom_roles`), with some of its permissions."
+      def create_role(scope, record, name, permissions, opts \\ []),
+        do: Sekisho.Roles.create(__MODULE__, scope, record, name, permissions, opts)
+
+      @doc "Changes the permissions a custom role gives."
+      def update_role(scope, role, permissions, opts \\ []),
+        do: Sekisho.Roles.update(__MODULE__, scope, role, permissions, opts)
+
+      @doc "Deletes a custom role, and its grants."
+      def delete_role(scope, role, opts \\ []),
+        do: Sekisho.Roles.delete(__MODULE__, scope, role, opts)
+
+      @doc "The custom roles of a record."
+      def roles(scope, record), do: Sekisho.Roles.list(__MODULE__, scope, record)
 
       @doc "Checks the policies together: their relations, and the roles they derive from."
       def validate!, do: Sekisho.validate!(__MODULE__)
@@ -272,22 +290,8 @@ defmodule Sekisho do
   @doc false
   def explain(root, scope, permission, %{__struct__: schema} = record) do
     ctx = Context.new(root, scope)
-    policy = Model.policy!(ctx.model, schema)
     _ = Condition.build(ctx, schema, permission)
-
-    rule = fn function ->
-      case Call.optional(policy, function, [ctx.actor, permission]) do
-        nil -> false
-        result when is_boolean(result) -> result
-        condition -> matches?(ctx, record, condition)
-      end
-    end
-
-    reasons =
-      List.wrap(if rule.(:allow), do: {:allow}) ++
-        Sekisho.Explain.holds(ctx, record, Model.roles_with(ctx.model, schema, permission), [])
-
-    denied = rule.(:deny)
+    {reasons, denied} = Sekisho.Explain.why(ctx, record, permission, [])
 
     %Explanation{
       permission: permission,

@@ -103,7 +103,7 @@ defmodule Sekisho.ModelTest do
         )
 
       assert_raise ArgumentError,
-                   ~r/derives from :admin on :org, which is not a role of/,
+                   ~r/derives from :admin on :org, which is not a role or a permission of/,
                    model([org, bad])
     end
 

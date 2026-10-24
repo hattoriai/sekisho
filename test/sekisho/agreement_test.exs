@@ -59,6 +59,13 @@ defmodule Sekisho.AgreementTest do
         )
     end
 
+    for org <- orgs, i <- 1..2 do
+      permissions = Enum.take_random([:read, :invite, :audit], :rand.uniform(2))
+      {:ok, _} = Permissions.create_role(nil, org, "custom#{i}", permissions, check: false)
+      user = Enum.random(users)
+      {:ok, _} = Permissions.grant(nil, user, "custom#{i}", on: org, check: false)
+    end
+
     tokens = for _ <- 1..3, do: link!(Enum.random(folders ++ docs))
     {users, docs, tokens}
   end
