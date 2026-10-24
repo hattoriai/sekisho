@@ -66,6 +66,10 @@ defmodule Sekisho.Condition do
 
   # Every path to the records that hold one of the roles: queries that select
   # %{id: ...}.
+  # No role gives the permission: no path, so a rule alone answers (and a
+  # "no" needs no record).
+  defp paths(_ctx, _schema, []), do: []
+
   defp paths(ctx, schema, roles) do
     roles = Model.implying(ctx.model, schema, roles)
     derives = Model.related_derives(ctx.model, schema, roles)
