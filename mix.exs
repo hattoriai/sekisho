@@ -106,11 +106,11 @@ defmodule Sekisho.MixProject do
         ],
         Tables: [Sekisho.Migrations],
         Databases: [
-          Sekisho.Dialect,
-          Sekisho.Dialect.Standard,
-          Sekisho.Dialect.Postgres,
-          Sekisho.Dialect.SQLite,
-          Sekisho.Dialect.MySQL
+          Sekisho.SQL.Dialect,
+          Sekisho.SQL.Dialect.Standard,
+          Sekisho.SQL.Dialect.Postgres,
+          Sekisho.SQL.Dialect.SQLite,
+          Sekisho.SQL.Dialect.MySQL
         ],
         Tests: [Sekisho.Test]
       ]

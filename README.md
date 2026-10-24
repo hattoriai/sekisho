@@ -19,7 +19,7 @@ database, next to your data, and needs no other service.
 
 You need Elixir 1.18+, Ecto 3.13 on a SQL database (PostgreSQL, MySQL
 or MariaDB, SQLite, or another through a
-[dialect](https://hexdocs.pm/sekisho/Sekisho.Dialect.html)), and Phoenix
+[dialect](https://hexdocs.pm/sekisho/Sekisho.SQL.Dialect.html)), and Phoenix
 1.7.14 or 1.8. LiveView is optional.
 
 With [Igniter](https://hexdocs.pm/igniter), one command adds Sekisho and

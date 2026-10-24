@@ -25,7 +25,7 @@ defmodule Sekisho.Migrations do
   Version 1 makes `sekisho_grants` (`Sekisho.Grant`), `sekisho_roles`
   (`Sekisho.Role`) and `sekisho_role_permissions`
   (`Sekisho.RolePermission`), the same on every SQL database; a column a
-  database types its own way comes from its dialect (`Sekisho.Dialect`).
+  database types its own way comes from its dialect (`Sekisho.SQL.Dialect`).
   """
 
   use PhoenixMountable.Migrations,

@@ -1,16 +1,17 @@
-defmodule Sekisho.DialectTest do
+defmodule Sekisho.SQL.DialectTest do
   # Which dialect a repo gets, and the standard one's grant, run here on
   # PostgreSQL: the code every other database runs.
   use SekishoTest.DataCase, async: false
 
-  alias Sekisho.{Dialect, Grant}
+  alias Sekisho.Grant
+  alias Sekisho.SQL.Dialect
 
   defmodule OtherRepo do
     def __adapter__, do: Ecto.Adapters.Tds
   end
 
   defmodule TdsDialect do
-    use Sekisho.Dialect
+    use Sekisho.SQL.Dialect
   end
 
   test "a repo gets its adapter's dialect, an unknown one the standard dialect" do

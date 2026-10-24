@@ -70,7 +70,7 @@ The queries are plain Ecto, in SQL every database runs: joins, `UNION`,
 own kind. A custom role's permissions are rows of
 `sekisho_role_permissions`, not an array.
 
-What a database does its own way is in its dialect (`Sekisho.Dialect`),
+What a database does its own way is in its dialect (`Sekisho.SQL.Dialect`),
 and only there: making a grant again in one statement where the database
 can (PostgreSQL, SQLite), and the type of a column where the standard one
 does not fit (MySQL indexes a `varbinary`, not a `blob`). Another database

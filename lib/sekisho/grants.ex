@@ -14,6 +14,7 @@ defmodule Sekisho.Grants do
   import Ecto.Query
 
   alias Sekisho.{Context, Denied, Grant, Model, Role}
+  alias Sekisho.SQL.Dialect
 
   def grant(root, scope, to, role, opts) do
     {resource, opts} = Keyword.pop!(opts, :on)
@@ -220,10 +221,10 @@ defmodule Sekisho.Grants do
   end
 
   # Granting again updates the grant: its expiry, who gave it, as the
-  # repo's database does it best (Sekisho.Dialect).
+  # repo's database does it best (Sekisho.SQL.Dialect).
   defp insert(ctx, _kind, grant) do
     repo = ctx.model.config.repo
-    Sekisho.Dialect.for_repo(repo).upsert_grant(repo, grant)
+    Dialect.for_repo(repo).upsert_grant(repo, grant)
   end
 
   @doc false

@@ -6,13 +6,15 @@ defmodule Sekisho.Migrations.V1 do
   # The same tables on every SQL database: a role's permissions are rows,
   # not an array; the columns in an index have a length; the links' unique
   # index is a plain one (SQL lets several NULLs through it). A column a
-  # database types its own way comes from its dialect (Sekisho.Dialect).
+  # database types its own way comes from its dialect (Sekisho.SQL.Dialect).
 
   use PhoenixMountable.Migration, description: "Sekisho's grants"
 
+  alias Sekisho.SQL.Dialect
+
   def up(ctx) do
     id = if ctx.install_options["primary_key"] == "binary_id", do: :uuid, else: :bigint
-    {hash_type, hash_opts} = Sekisho.Dialect.for_repo(ctx.repo).column(:token_hash)
+    {hash_type, hash_opts} = Dialect.for_repo(ctx.repo).column(:token_hash)
 
     create table(:sekisho_grants, prefix: ctx.prefix) do
       add :resource_type, :string, size: 64, null: false

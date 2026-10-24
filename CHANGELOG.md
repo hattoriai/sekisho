@@ -34,7 +34,7 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `Sekisho.Test`: `assert_allowed`, `refute_allowed`,
   `assert_where_allowed`; `validate!/0`.
 - Any SQL database Ecto speaks to: the queries are plain SQL, and what one
-  database does its own way is in its dialect (`Sekisho.Dialect`:
+  database does its own way is in its dialect (`Sekisho.SQL.Dialect`:
   PostgreSQL, SQLite, MySQL and MariaDB, and a standard one for the
   others). A custom role's permissions are rows of
   `sekisho_role_permissions`. If you ran version 1 of the migrations from
