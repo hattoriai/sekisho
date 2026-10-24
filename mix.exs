@@ -45,7 +45,7 @@ defmodule Sekisho.MixProject do
       {:postgrex, "~> 0.19", only: :test},
       # The tables' versions (Sekisho.Migrations), the installer, and the
       # optional screens.
-      {:phoenix_mountable, path: "../phoenix_mountable", override: true},
+      {:phoenix_mountable, "~> 0.2.5"},
       # Sekisho.LiveView: events checked, and pages that lose their access.
       {:phoenix_live_view, "~> 1.1", optional: true},
       {:lazy_html, "~> 0.1", only: :test},
