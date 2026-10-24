@@ -219,12 +219,11 @@ defmodule Sekisho.Grants do
     end
   end
 
+  # Granting again updates the grant: its expiry, who gave it, as the
+  # repo's database does it best (Sekisho.Dialect).
   defp insert(ctx, _kind, grant) do
-    ctx.model.config.repo.insert(grant,
-      on_conflict: {:replace, [:expires_at, :granted_by_id]},
-      conflict_target: [:resource_type, :resource_id, :actor_type, :actor_id, :role],
-      returning: true
-    )
+    repo = ctx.model.config.repo
+    Sekisho.Dialect.for_repo(repo).upsert_grant(repo, grant)
   end
 
   @doc false

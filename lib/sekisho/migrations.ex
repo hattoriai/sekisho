@@ -22,8 +22,10 @@ defmodule Sekisho.Migrations do
   or `up(version: 1, primary_key: :binary_id)`. It is kept with the version,
   so later versions use it too.
 
-  Version 1 makes `sekisho_grants` (`Sekisho.Grant`) and `sekisho_roles`
-  (`Sekisho.Role`).
+  Version 1 makes `sekisho_grants` (`Sekisho.Grant`), `sekisho_roles`
+  (`Sekisho.Role`) and `sekisho_role_permissions`
+  (`Sekisho.RolePermission`), the same on every SQL database; a column a
+  database types its own way comes from its dialect (`Sekisho.Dialect`).
   """
 
   use PhoenixMountable.Migrations,

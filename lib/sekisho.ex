@@ -266,7 +266,9 @@ defmodule Sekisho do
   end
 
   defp held?(result, _row, _permission) when is_boolean(result), do: result
-  defp held?(_condition, row, permission), do: Map.get(row, permission) == true
+  # A condition selected as a value: true, or 1 where the database has no
+  # booleans (SQLite, MySQL).
+  defp held?(_condition, row, permission), do: Map.get(row, permission) in [true, 1]
 
   ## Fields
 

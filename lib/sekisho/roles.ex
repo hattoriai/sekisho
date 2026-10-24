@@ -8,7 +8,7 @@ defmodule Sekisho.Roles do
 
   import Ecto.Query
 
-  alias Sekisho.{Context, Grant, Grants, Model, Role}
+  alias Sekisho.{Context, Grant, Grants, Model, Role, RolePermission}
 
   def create(root, scope, resource, name, permissions, opts) do
     ctx = Context.new(root, scope)
@@ -22,7 +22,7 @@ defmodule Sekisho.Roles do
         resource_type: Model.type(ctx.model, schema),
         resource_id: id,
         name: name,
-        permissions: Enum.map(permissions, &to_string/1)
+        permission_rows: rows(permissions)
       }
       |> Ecto.Changeset.change()
       |> Ecto.Changeset.unique_constraint(:name,
@@ -30,6 +30,7 @@ defmodule Sekisho.Roles do
         message: "is already a role of this record"
       )
       |> ctx.model.config.repo.insert()
+      |> with_permissions()
       |> tap(&notify(ctx, &1))
     end
   end
@@ -44,9 +45,14 @@ defmodule Sekisho.Roles do
     # Both what it gave and what it will give: taking a permission away is
     # giving it, too.
     with :ok <- Grants.check(ctx, opts, resource, Enum.uniq(before ++ permissions)) do
+      repo = ctx.model.config.repo
+
       role
-      |> Ecto.Changeset.change(permissions: Enum.map(permissions, &to_string/1))
-      |> ctx.model.config.repo.update()
+      |> repo.preload(:permission_rows)
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.put_assoc(:permission_rows, rows(permissions))
+      |> repo.update()
+      |> with_permissions()
       |> tap(&notify(ctx, &1))
     end
   end
@@ -81,20 +87,34 @@ defmodule Sekisho.Roles do
     policy = custom!(ctx, schema)
 
     with :ok <- Grants.authorize(ctx, policy.__sekisho__(:grant_to).by, resource) do
-      {:ok, ctx.model.config.repo.all(from(r in query(ctx, resource), order_by: r.name))}
+      roles = ctx.model.config.repo.all(from(r in query(ctx, resource), order_by: r.name))
+      {:ok, Enum.map(roles, &Role.load_permissions/1)}
     end
   end
 
   @doc false
   def get(ctx, resource, name) do
-    ctx.model.config.repo.one(from r in query(ctx, resource), where: r.name == ^name)
+    case ctx.model.config.repo.one(from r in query(ctx, resource), where: r.name == ^name) do
+      nil -> nil
+      role -> Role.load_permissions(role)
+    end
   end
 
+  # The roles of a record, each with its permissions, in the order given.
   defp query(ctx, %{__struct__: schema} = resource) do
     type = Model.type(ctx.model, schema)
     id = Map.fetch!(resource, Model.primary_key(schema))
-    from r in Role, where: r.resource_type == ^type and r.resource_id == ^id
+    rows = from p in RolePermission, order_by: p.id
+
+    from r in Role,
+      where: r.resource_type == ^type and r.resource_id == ^id,
+      preload: [permission_rows: ^rows]
   end
+
+  defp rows(permissions), do: Enum.map(permissions, &%RolePermission{permission: to_string(&1)})
+
+  defp with_permissions({:ok, %Role{} = role}), do: {:ok, Role.load_permissions(role)}
+  defp with_permissions(other), do: other
 
   ## Checks
 

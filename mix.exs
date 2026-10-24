@@ -39,7 +39,7 @@ defmodule Sekisho.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       # The conditions, the lists and the grants: Ecto queries in the app's
-      # database (PostgreSQL, for the recursive queries of nested resources).
+      # database, whichever SQL database it is. The tests run on PostgreSQL.
       {:ecto, "~> 3.13"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, "~> 0.19", only: :test},
@@ -97,8 +97,21 @@ defmodule Sekisho.MixProject do
       groups_for_modules: [
         "Your modules": [Sekisho, Sekisho.Policy, Sekisho.Sources],
         Phoenix: [Sekisho.LiveView],
-        Results: [Sekisho.Denied, Sekisho.Explanation, Sekisho.Grant, Sekisho.Role],
+        Results: [
+          Sekisho.Denied,
+          Sekisho.Explanation,
+          Sekisho.Grant,
+          Sekisho.Role,
+          Sekisho.RolePermission
+        ],
         Tables: [Sekisho.Migrations],
+        Databases: [
+          Sekisho.Dialect,
+          Sekisho.Dialect.Standard,
+          Sekisho.Dialect.Postgres,
+          Sekisho.Dialect.SQLite,
+          Sekisho.Dialect.MySQL
+        ],
         Tests: [Sekisho.Test]
       ]
     ]

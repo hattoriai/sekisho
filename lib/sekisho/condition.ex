@@ -178,7 +178,9 @@ defmodule Sekisho.Condition do
     with id when not is_nil(id) <- ctx.actor_id,
          query when not is_nil(query) <- Call.optional(ctx.model.config.sources, :roles, [schema]) do
       from s in subquery(query),
-        where: s.actor_id == ^id and s.role in ^names,
+        # Strings: a role the app's query writes as a literal is typed binary,
+        # and SQLite never finds text in a blob.
+        where: s.actor_id == ^id and type(s.role, :string) in ^names,
         select: %{id: s.resource_id}
     else
       _none -> nil
@@ -201,7 +203,9 @@ defmodule Sekisho.Condition do
           on:
             r.resource_type == g.resource_type and r.resource_id == g.resource_id and
               r.name == g.role,
-          where: g.resource_type == ^type and ^name in r.permissions,
+          join: p in Sekisho.RolePermission,
+          on: p.role_id == r.id and p.permission == ^name,
+          where: g.resource_type == ^type,
           where: is_nil(g.expires_at) or g.expires_at > ^now,
           where: ^who,
           select: %{id: g.resource_id}
