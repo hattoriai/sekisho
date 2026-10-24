@@ -1,0 +1,10 @@
+/_build
+/deps
+/doc
+/cover
+/priv/plts
+/tmp
+erl_crash.dump
+sekisho-*.tar
+*.ez
+*.whl
