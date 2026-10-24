@@ -7,6 +7,13 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- A permission no role gives, asked without a record (`allowed?(scope,
+  :manage, Source)`), raised "depends on the record" for anyone the rules
+  did not allow: it built a lookup of the grants of no role. It answers
+  no now.
+
 ## [0.1.0] - 2026-10-24
 
 ### Added

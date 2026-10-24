@@ -5,7 +5,8 @@ defmodule SekishoTest.PostPolicy do
 
   alias SekishoTest.User
 
-  permissions [:read, :create, :update, :delete]
+  # :feature is an admin's only: no other clause, and no role, gives it.
+  permissions [:read, :create, :update, :delete, :feature]
 
   @impl true
   def allow(%User{admin: true}, _permission), do: true

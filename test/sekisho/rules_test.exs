@@ -39,6 +39,14 @@ defmodule Sekisho.RulesTest do
     assert Permissions.allowed?(scope(ana), :create, %Post{})
   end
 
+  test "no rule allows and no role could: no, without a record", %{ana: ana, admin: admin} do
+    # Only an admin features a post, and posts have no roles: for anyone
+    # else the answer is no, with or without a post.
+    refute Permissions.allowed?(scope(ana), :feature, Post)
+    refute Permissions.allowed?(scope(nil), :feature, Post)
+    assert Permissions.allowed?(scope(admin), :feature, Post)
+  end
+
   test "a rule about the record needs one", %{ana: ana} do
     assert_raise ArgumentError, ~r/depends on the record/, fn ->
       Permissions.allowed?(scope(ana), :update, Post)
