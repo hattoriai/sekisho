@@ -172,3 +172,44 @@ defmodule SekishoTest.Permissions do
   def link_tokens(%SekishoTest.Scope{links: links}), do: links
   def link_tokens(nil), do: []
 end
+
+defmodule SekishoTest.ReportPolicy do
+  @moduledoc "A library's reports, shared with the app's users, teams and links."
+  use Sekisho.Policy, for: SekishoTest.Report
+
+  permissions [:read, :update, :share, :manage]
+
+  role :viewer, permissions: [:read]
+  role :editor, permissions: [:update]
+  role :owner, permissions: :all
+
+  derive :viewer, from: :editor
+
+  grant_to [:user, :group, :link], by: :share, link_up_to: :viewer
+  custom_roles()
+end
+
+defmodule SekishoTest.LibraryMigrations do
+  @moduledoc "The library's own tables: library_grants, library_roles, library_role_permissions."
+  use Sekisho.Migrations, tables: "library"
+end
+
+defmodule SekishoTest.LibraryPermissions do
+  @moduledoc "A library's permissions module: its own tables, and a repo known at runtime."
+  use Sekisho,
+    policies: [SekishoTest.ReportPolicy],
+    sources: SekishoTest.Sources,
+    groups: [SekishoTest.Team],
+    tables: "library"
+
+  @impl Sekisho
+  def repo, do: Application.fetch_env!(:sekisho, :library_repo)
+
+  @impl Sekisho
+  def actor(%SekishoTest.Scope{user: user}), do: user
+  def actor(nil), do: nil
+
+  @impl Sekisho
+  def link_tokens(%SekishoTest.Scope{links: links}), do: links
+  def link_tokens(nil), do: []
+end

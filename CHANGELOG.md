@@ -7,6 +7,23 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- A repo known at runtime: leave `repo:` out of `use Sekisho` and give the
+  module a `repo/0`, for a library that learns its host's repo from its
+  config. `repo:` works as before, and a module with neither, or both,
+  still does not compile.
+- Tables of their own: `use Sekisho, tables: "my_lib"` keeps the grants and
+  roles in `my_lib_grants`, `my_lib_roles` and `my_lib_role_permissions`,
+  migrated by a module with `use Sekisho.Migrations, tables: "my_lib"` and
+  tracked apart from the host's own Sekisho, so neither's grants, versions
+  or rollbacks touch the other's.
+- Ids of two types: the install options `:resource_key` (the records
+  granted on) and `:actor_key` (the users and groups granted to), each
+  `:id` or `:binary_id`, for records with integer ids granted to users with
+  UUIDs, or the other way. Each defaults to `:primary_key`, so existing
+  installs are unchanged.
+
 ## [0.1.1] - 2026-10-24
 
 ### Fixed

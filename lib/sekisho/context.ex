@@ -1,11 +1,21 @@
 defmodule Sekisho.Context do
   @moduledoc false
-  # Who asks, once for each question: the actor, its table and id, and the
-  # links it holds.
+  # Who asks, once for each question: the actor, its table and id, the
+  # links it holds, and the repo the permissions module names.
 
   alias Sekisho.Model
 
-  defstruct [:root, :model, :scope, :actor, :actor_type, :actor_id, token_hashes: [], now: nil]
+  defstruct [
+    :root,
+    :model,
+    :repo,
+    :scope,
+    :actor,
+    :actor_type,
+    :actor_id,
+    token_hashes: [],
+    now: nil
+  ]
 
   def new(root, scope) do
     model = Model.get(root)
@@ -26,6 +36,7 @@ defmodule Sekisho.Context do
     %__MODULE__{
       root: root,
       model: model,
+      repo: root.repo(),
       scope: scope,
       actor: actor,
       actor_type: type,

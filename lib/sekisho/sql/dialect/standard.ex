@@ -14,7 +14,7 @@ defmodule Sekisho.SQL.Dialect.Standard do
     repo.transaction(fn ->
       existing =
         repo.one(
-          from g in Grant,
+          from g in {grant.__meta__.source, Grant},
             where:
               g.resource_type == ^grant.resource_type and g.resource_id == ^grant.resource_id,
             where: g.actor_type == ^grant.actor_type and g.actor_id == ^grant.actor_id,

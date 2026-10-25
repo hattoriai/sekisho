@@ -16,11 +16,23 @@ _ = Ecto.Adapters.Postgres.storage_down(Ecto.Repo.Supervisor.parse_url(url))
 {:ok, _pid} = Phoenix.PubSub.Supervisor.start_link(name: SekishoTest.PubSub)
 {:ok, _pid} = SekishoTest.Host.start()
 
+# The repo of the library's permissions module, known only at runtime.
+Application.put_env(:sekisho, :library_repo, SekishoTest.Repo)
+
 defmodule SekishoTest.Migration do
   use Ecto.Migration
 
   def up do
     Sekisho.Migrations.up(version: 1)
+
+    # A library's own tables: grants on its reports (uuid) to the app's
+    # users and teams (bigint).
+    SekishoTest.LibraryMigrations.up(version: 1, resource_key: :binary_id, actor_key: :id)
+
+    create table(:reports, primary_key: false) do
+      add :id, :uuid, primary_key: true
+      add :title, :text
+    end
 
     create table(:users) do
       add :name, :text

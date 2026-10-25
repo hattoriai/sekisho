@@ -8,7 +8,7 @@ defmodule Sekisho.Roles do
 
   import Ecto.Query
 
-  alias Sekisho.{Context, Grant, Grants, Model, Role, RolePermission}
+  alias Sekisho.{Context, Grant, Grants, Model, Role, RolePermission, Tables}
 
   def create(root, scope, resource, name, permissions, opts) do
     ctx = Context.new(root, scope)
@@ -22,14 +22,15 @@ defmodule Sekisho.Roles do
         resource_type: Model.type(ctx.model, schema),
         resource_id: id,
         name: name,
-        permission_rows: rows(permissions)
+        permission_rows: rows(ctx, permissions)
       }
+      |> Tables.put(ctx)
       |> Ecto.Changeset.change()
       |> Ecto.Changeset.unique_constraint(:name,
-        name: :sekisho_roles_resource_type_resource_id_name_index,
+        name: Tables.role_name_index(ctx),
         message: "is already a role of this record"
       )
-      |> ctx.model.config.repo.insert()
+      |> ctx.repo.insert()
       |> with_permissions()
       |> tap(&notify(ctx, &1))
     end
@@ -45,12 +46,12 @@ defmodule Sekisho.Roles do
     # Both what it gave and what it will give: taking a permission away is
     # giving it, too.
     with :ok <- Grants.check(ctx, opts, resource, Enum.uniq(before ++ permissions)) do
-      repo = ctx.model.config.repo
+      repo = ctx.repo
 
       role
-      |> repo.preload(:permission_rows)
+      |> repo.preload(permission_rows: from(p in Tables.from(ctx, :role_permissions)))
       |> Ecto.Changeset.change()
-      |> Ecto.Changeset.put_assoc(:permission_rows, rows(permissions))
+      |> Ecto.Changeset.put_assoc(:permission_rows, rows(ctx, permissions))
       |> repo.update()
       |> with_permissions()
       |> tap(&notify(ctx, &1))
@@ -61,13 +62,13 @@ defmodule Sekisho.Roles do
     ctx = Context.new(root, scope)
     resource = resource!(ctx, role)
     permissions = Enum.map(role.permissions, &String.to_existing_atom/1)
-    repo = ctx.model.config.repo
+    repo = ctx.repo
 
     with :ok <- Grants.check(ctx, opts, resource, permissions) do
       {:ok, _} =
         repo.transaction(fn ->
           repo.delete_all(
-            from g in Grant,
+            from g in Tables.from(ctx, :grants),
               where:
                 g.resource_type == ^role.resource_type and g.resource_id == ^role.resource_id,
               where: g.role == ^role.name
@@ -87,14 +88,14 @@ defmodule Sekisho.Roles do
     policy = custom!(ctx, schema)
 
     with :ok <- Grants.authorize(ctx, policy.__sekisho__(:grant_to).by, resource) do
-      roles = ctx.model.config.repo.all(from(r in query(ctx, resource), order_by: r.name))
+      roles = ctx.repo.all(from(r in query(ctx, resource), order_by: r.name))
       {:ok, Enum.map(roles, &Role.load_permissions/1)}
     end
   end
 
   @doc false
   def get(ctx, resource, name) do
-    case ctx.model.config.repo.one(from r in query(ctx, resource), where: r.name == ^name) do
+    case ctx.repo.one(from r in query(ctx, resource), where: r.name == ^name) do
       nil -> nil
       role -> Role.load_permissions(role)
     end
@@ -104,14 +105,15 @@ defmodule Sekisho.Roles do
   defp query(ctx, %{__struct__: schema} = resource) do
     type = Model.type(ctx.model, schema)
     id = Map.fetch!(resource, Model.primary_key(schema))
-    rows = from p in RolePermission, order_by: p.id
+    rows = from p in Tables.from(ctx, :role_permissions), order_by: p.id
 
-    from r in Role,
+    from r in Tables.from(ctx, :roles),
       where: r.resource_type == ^type and r.resource_id == ^id,
       preload: [permission_rows: ^rows]
   end
 
-  defp rows(permissions), do: Enum.map(permissions, &%RolePermission{permission: to_string(&1)})
+  defp rows(ctx, permissions),
+    do: Enum.map(permissions, &Tables.put(%RolePermission{permission: to_string(&1)}, ctx))
 
   defp with_permissions({:ok, %Role{} = role}), do: {:ok, Role.load_permissions(role)}
   defp with_permissions(other), do: other
@@ -165,7 +167,7 @@ defmodule Sekisho.Roles do
     {schema, _type} =
       Enum.find(ctx.model.types, fn {_schema, type} -> type == role.resource_type end)
 
-    ctx.model.config.repo.get!(schema, role.resource_id)
+    ctx.repo.get!(schema, role.resource_id)
   end
 
   defp notify(ctx, {:ok, role}), do: changed(ctx, role)

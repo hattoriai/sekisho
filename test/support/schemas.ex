@@ -118,3 +118,13 @@ defmodule SekishoTest.Post do
     belongs_to :author, SekishoTest.User
   end
 end
+
+defmodule SekishoTest.Report do
+  @moduledoc "A record of a library built into the app, with a uuid."
+  use Ecto.Schema
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  schema "reports" do
+    field :title, :string
+  end
+end
