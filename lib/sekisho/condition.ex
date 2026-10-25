@@ -15,7 +15,7 @@ defmodule Sekisho.Condition do
 
   import Ecto.Query
 
-  alias Sekisho.{Call, Context, Grant, Model}
+  alias Sekisho.{Call, Context, Model, Tables}
 
   @type t :: boolean() | Ecto.Query.DynamicExpr.t()
 
@@ -128,7 +128,7 @@ defmodule Sekisho.Condition do
         type = Model.type(ctx.model, schema)
         now = ctx.now
 
-        from g in Grant,
+        from g in Tables.from(ctx, :grants),
           where: g.resource_type == ^type and g.role in ^names,
           where: is_nil(g.expires_at) or g.expires_at > ^now,
           where: ^who,
@@ -202,12 +202,12 @@ defmodule Sekisho.Condition do
       now = ctx.now
 
       [
-        from(g in Grant,
-          join: r in Sekisho.Role,
+        from(g in Tables.from(ctx, :grants),
+          join: r in ^Tables.from(ctx, :roles),
           on:
             r.resource_type == g.resource_type and r.resource_id == g.resource_id and
               r.name == g.role,
-          join: p in Sekisho.RolePermission,
+          join: p in ^Tables.from(ctx, :role_permissions),
           on: p.role_id == r.id and p.permission == ^name,
           where: g.resource_type == ^type,
           where: is_nil(g.expires_at) or g.expires_at > ^now,

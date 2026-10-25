@@ -43,7 +43,8 @@ defmodule Sekisho do
 
   ## Options
 
-    * `:repo`: your Ecto repo (required).
+    * `:repo`: your Ecto repo. Required, unless the module has a `repo/0`
+      (see "A repo known at runtime").
     * `:policies`: your policies (required). They are read when the module
       is first asked, not when it compiles, so a change to one recompiles no
       other; `validate!/0` checks them together (in a test, or at boot).
@@ -53,6 +54,28 @@ defmodule Sekisho do
     * `:pubsub`: your `Phoenix.PubSub`, on which grants and revocations are
       broadcast (topic `"sekisho"`).
     * `:deny_as`: `:forbidden` (403, the default) or `:not_found` (404).
+    * `:tables`: the start of the names of Sekisho's tables, `"sekisho"` by
+      default (`sekisho_grants`, `sekisho_roles`, `sekisho_role_permissions`).
+      A library that keeps its own grants apart from its host's names its
+      own, and migrates them with `use Sekisho.Migrations, tables: ...`.
+
+  ## A repo known at runtime
+
+  A library built into another app does not know its host's repo when it
+  compiles. Leave `repo:` out and give the module a `repo/0`, asked once for
+  each question:
+
+      defmodule MyLib.Permissions do
+        use Sekisho, policies: [MyLib.ReportPolicy]
+
+        @impl Sekisho
+        def repo, do: Application.fetch_env!(:my_lib, :repo)
+
+        @impl Sekisho
+        def actor(scope), do: scope.user
+      end
+
+  A module with neither `repo:` nor `repo/0`, or with both, does not compile.
 
   ## Checks of a record
 
@@ -65,6 +88,12 @@ defmodule Sekisho do
   import Ecto.Query
 
   alias Sekisho.{Call, Condition, Context, Denied, Explanation, Model}
+
+  @doc """
+  Your Ecto repo: the `repo:` of `use Sekisho`, or your own function, for a
+  repo known only at runtime.
+  """
+  @callback repo() :: module()
 
   @doc "The actor your scope is: a user struct, or `nil` for a visitor."
   @callback actor(scope :: term()) :: struct() | nil
@@ -80,6 +109,7 @@ defmodule Sekisho do
     quote bind_quoted: [opts: opts] do
       @behaviour Sekisho
       @sekisho_config Sekisho.Config.new!(opts)
+      @before_compile Sekisho
 
       @doc false
       def __sekisho__(:config), do: @sekisho_config
@@ -155,6 +185,32 @@ defmodule Sekisho do
     end
   end
 
+  @doc false
+  # The repo: `repo:`, made a repo/0, or the module's own repo/0. Never both,
+  # and never neither, so a module without a repo does not compile.
+  defmacro __before_compile__(env) do
+    config = Module.get_attribute(env.module, :sekisho_config)
+    defined? = Module.defines?(env.module, {:repo, 0}, :def)
+
+    case {config.repo, defined?} do
+      {nil, true} ->
+        :ok
+
+      {nil, false} ->
+        raise ArgumentError, "use Sekisho needs repo:, or a repo/0 in #{inspect(env.module)}"
+
+      {_repo, true} ->
+        raise ArgumentError,
+              "#{inspect(env.module)} has repo: and a repo/0: give one of them"
+
+      {repo, false} ->
+        quote do
+          @impl Sekisho
+          def repo, do: unquote(repo)
+        end
+    end
+  end
+
   ## Checks
 
   @doc false
@@ -182,7 +238,7 @@ defmodule Sekisho do
           key = Model.primary_key(schema)
           id = Map.fetch!(record, key)
           query = from x in schema, where: field(x, ^key) == ^id, where: ^condition
-          ctx.model.config.repo.exists?(query)
+          ctx.repo.exists?(query)
       end
 
     :telemetry.execute([:sekisho, :decision], %{}, %{
@@ -255,7 +311,7 @@ defmodule Sekisho do
           from(x in schema, where: field(x, ^key) in ^ids)
           |> select([x], %{id: field(x, ^key)})
           |> select_merge(^selected)
-          |> ctx.model.config.repo.all()
+          |> ctx.repo.all()
           |> Map.new(&{&1.id, &1})
       end
 
@@ -315,9 +371,7 @@ defmodule Sekisho do
     key = Model.primary_key(schema)
     id = Map.fetch!(record, key)
 
-    ctx.model.config.repo.exists?(
-      from x in schema, where: field(x, ^key) == ^id, where: ^condition
-    )
+    ctx.repo.exists?(from x in schema, where: field(x, ^key) == ^id, where: ^condition)
   end
 
   @doc false

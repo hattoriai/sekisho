@@ -13,7 +13,7 @@ defmodule Sekisho.Grants do
 
   import Ecto.Query
 
-  alias Sekisho.{Context, Denied, Grant, Model, Role}
+  alias Sekisho.{Context, Denied, Grant, Model, Role, Tables}
   alias Sekisho.SQL.Dialect
 
   def grant(root, scope, to, role, opts) do
@@ -36,7 +36,7 @@ defmodule Sekisho.Grants do
         expires_at: opts[:expires_at]
       }
 
-      result = insert(ctx, kind, grant)
+      result = insert(ctx, kind, Tables.put(grant, ctx))
       with {:ok, grant} <- result, do: broadcast(ctx, grant, :granted)
       result
     end
@@ -55,12 +55,12 @@ defmodule Sekisho.Grants do
       name = to_string(role)
 
       query =
-        from g in Grant,
+        from g in Tables.from(ctx, :grants),
           where: g.resource_type == ^type and g.resource_id == ^id,
           where: g.actor_type == ^actor_type and g.role == ^name
 
       query = if actor_id, do: where(query, [g], g.actor_id == ^actor_id), else: query
-      {count, _} = ctx.model.config.repo.delete_all(query)
+      {count, _} = ctx.repo.delete_all(query)
 
       if count > 0 do
         broadcast(
@@ -89,8 +89,8 @@ defmodule Sekisho.Grants do
       type = Model.type(ctx.model, schema)
 
       grants =
-        ctx.model.config.repo.all(
-          from g in Grant,
+        ctx.repo.all(
+          from g in Tables.from(ctx, :grants),
             where: g.resource_type == ^type and g.resource_id == ^id,
             order_by: [asc: g.inserted_at, asc: g.id]
         )
@@ -215,7 +215,7 @@ defmodule Sekisho.Grants do
   defp insert(ctx, :link, grant) do
     token = Base.url_encode64(:crypto.strong_rand_bytes(24), padding: false)
 
-    with {:ok, grant} <- ctx.model.config.repo.insert(%{grant | token_hash: Context.hash(token)}) do
+    with {:ok, grant} <- ctx.repo.insert(%{grant | token_hash: Context.hash(token)}) do
       {:ok, %{grant | token: token}}
     end
   end
@@ -223,7 +223,7 @@ defmodule Sekisho.Grants do
   # Granting again updates the grant: its expiry, who gave it, as the
   # repo's database does it best (Sekisho.SQL.Dialect).
   defp insert(ctx, _kind, grant) do
-    repo = ctx.model.config.repo
+    repo = ctx.repo
     Dialect.for_repo(repo).upsert_grant(repo, grant)
   end
 

@@ -93,7 +93,7 @@ defmodule Sekisho.Test do
     query = root.where_allowed(queryable, scope, permission)
     %Ecto.Query{from: %{source: {_source, schema}}} = query
     [key] = schema.__schema__(:primary_key)
-    repo = root.__sekisho__(:config).repo
+    repo = root.repo()
 
     got = query |> repo.all() |> MapSet.new(&Map.fetch!(&1, key))
     want = MapSet.new(records, &Map.fetch!(&1, key))

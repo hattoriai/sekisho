@@ -6,7 +6,7 @@ defmodule Sekisho.Explain do
 
   import Ecto.Query
 
-  alias Sekisho.{Call, Grant, Model}
+  alias Sekisho.{Call, Grant, Model, Tables}
 
   # {reasons, denied}: everything that allows it, and whether deny/2 refuses
   # it all the same.
@@ -60,12 +60,12 @@ defmodule Sekisho.Explain do
     now = ctx.now
 
     query =
-      from g in Grant,
+      from g in Tables.from(ctx, :grants),
         where: g.resource_type == ^type and g.resource_id == ^id and g.role in ^names,
         where: is_nil(g.expires_at) or g.expires_at > ^now
 
     query
-    |> ctx.model.config.repo.all()
+    |> ctx.repo.all()
     |> Enum.filter(&mine?(ctx, &1))
     |> Enum.map(&{:grant, String.to_existing_atom(&1.role), &1})
   end
@@ -92,7 +92,7 @@ defmodule Sekisho.Explain do
             actor_id = ctx.actor_id
             group_id = grant.actor_id
 
-            ctx.model.config.repo.exists?(
+            ctx.repo.exists?(
               from m in subquery(members),
                 where: m.actor_id == ^actor_id and m.group_id == ^group_id
             )
@@ -107,7 +107,7 @@ defmodule Sekisho.Explain do
         where: s.actor_id == ^actor_id and s.resource_id == ^id and s.role in ^names,
         select: s.role
       )
-      |> ctx.model.config.repo.all()
+      |> ctx.repo.all()
       |> Enum.uniq()
       |> Enum.map(&{:source, to_role(&1)})
     else
@@ -123,17 +123,17 @@ defmodule Sekisho.Explain do
       name = to_string(permission)
       now = ctx.now
 
-      from(g in Grant,
-        join: r in Sekisho.Role,
+      from(g in Tables.from(ctx, :grants),
+        join: r in ^Tables.from(ctx, :roles),
         on:
           r.resource_type == g.resource_type and r.resource_id == g.resource_id and
             r.name == g.role,
-        join: p in Sekisho.RolePermission,
+        join: p in ^Tables.from(ctx, :role_permissions),
         on: p.role_id == r.id and p.permission == ^name,
         where: g.resource_type == ^type and g.resource_id == ^id,
         where: is_nil(g.expires_at) or g.expires_at > ^now
       )
-      |> ctx.model.config.repo.all()
+      |> ctx.repo.all()
       |> Enum.filter(&mine?(ctx, &1))
       |> Enum.map(&{:grant, &1.role, &1})
     else
@@ -188,7 +188,7 @@ defmodule Sekisho.Explain do
   end
 
   defp related_records(ctx, %{__struct__: schema} = record, relation) do
-    repo = ctx.model.config.repo
+    repo = ctx.repo
 
     case Model.relation!(ctx.model, schema, relation) do
       {:belongs_to, key, related} ->
