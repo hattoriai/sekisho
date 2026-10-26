@@ -2,6 +2,18 @@
 
 ![Sekisho — Permissions for Phoenix](https://raw.githubusercontent.com/hattoriai/sekisho/main/media/banner.png)
 
+<p>
+  <a href="https://hex.pm/packages/sekisho">
+    <img alt="Hex Version" src="https://img.shields.io/hexpm/v/sekisho.svg">
+  </a>
+  <a href="https://hexdocs.pm/sekisho">
+    <img src="https://img.shields.io/badge/docs-hexdocs-blue" alt="HexDocs">
+  </a>
+  <a href="https://github.com/hattoriai/sekisho/actions">
+    <img alt="CI Status" src="https://github.com/hattoriai/sekisho/actions/workflows/ci.yml/badge.svg">
+  </a>
+</p>
+
 **Permissions for Phoenix: who may do what, from one rule on a post to
 roles each customer defines and documents shared like Google Docs.**
 
