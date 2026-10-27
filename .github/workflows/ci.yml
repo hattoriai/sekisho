@@ -28,7 +28,7 @@ jobs:
           version-file: .tool-versions
           version-type: strict
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             deps
@@ -66,7 +66,7 @@ jobs:
           otp-version: "27.3"
           elixir-version: "1.18.4"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             deps
