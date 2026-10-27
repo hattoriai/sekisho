@@ -7,6 +7,8 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-27
+
 ### Added
 
 - A repo known at runtime: leave `repo:` out of `use Sekisho` and give the
@@ -68,6 +70,7 @@ and Sekisho follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `sekisho_role_permissions`. If you ran version 1 of the migrations from
   0.1.0-dev, roll it back and run it again: its tables changed.
 
-[Unreleased]: https://github.com/hattoriai/sekisho/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/hattoriai/sekisho/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hattoriai/sekisho/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/hattoriai/sekisho/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/hattoriai/sekisho/releases/tag/v0.1.0

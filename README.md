@@ -45,7 +45,7 @@ mix ecto.migrate
 <details>
 <summary>Without Igniter</summary>
 
-Add `{:sekisho, "~> 0.1"}` to the deps in `mix.exs`, then run:
+Add `{:sekisho, "~> 0.2"}` to the deps in `mix.exs`, then run:
 
 ```sh
 mix deps.get
